@@ -11,17 +11,21 @@ const useChat = (roomId) => {
     );
     
     socketRef.current.emit('join', { roomId });
-    socketRef.current.on(
-      "newChatMessage",
-      ({ message }) => {
-        setMessages(messages => [...messages, message]);
-      }
-    );
 
     return () => {
       socketRef.current.disconnect();
     };
   }, []);
+
+  useEffect(() => {
+    socketRef.current.on(
+      "newChatMessage",
+      ({ message }) => {
+        console.log(message)
+        setMessages(messages => [...messages, message]);
+      }
+    );
+  }, [])
 
   const sendMessage = ({ message, roomId }) => {
     socketRef.current.emit("newChatMessage", { message, roomId });
