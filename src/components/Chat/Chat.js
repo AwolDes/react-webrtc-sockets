@@ -12,7 +12,7 @@ const Chat = ({ roomId }) => {
       <Messages messages={messages} />
       <MessageBox
         onSendMessage={message => {
-          sendMessage({ message });
+          sendMessage({ message, roomId });
         }}
       />
     </div>

@@ -9,8 +9,8 @@ const useChat = (roomId) => {
     socketRef.current = io(
       process.env.REACT_APP_SIGNALING_SERVER
     );
-    socketRef.current.emit('join', { roomId: roomId });
-
+    
+    socketRef.current.emit('join', { roomId });
     socketRef.current.on(
       "newChatMessage",
       ({ message }) => {
@@ -23,8 +23,8 @@ const useChat = (roomId) => {
     };
   }, []);
 
-  const sendMessage = ({ message }) => {
-    socketRef.current.emit("newChatMessage", { message });
+  const sendMessage = ({ message, roomId }) => {
+    socketRef.current.emit("newChatMessage", { message, roomId });
   };
 
   return { messages, sendMessage };

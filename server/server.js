@@ -36,9 +36,6 @@ io.on('connection', function (socket) {
     })
     socket.on('newChatMessage', data => {
         console.log(data)
-        const roomId = Object.keys(socket.rooms).filter(item => item != socket.id)[0];
-        // Filter out socket id - it is the default room a socket is in
-        console.log(roomId)
-        io.to(roomId).emit('newChatMessage', data);
+        io.to(data.roomId).emit('newChatMessage', { message: data.message });
     });
 });
