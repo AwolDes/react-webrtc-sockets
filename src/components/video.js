@@ -4,6 +4,7 @@ import '../styles/video.css';
 import io from 'socket.io-client';
 import { getDisplayStream } from '../helpers/media-access';
 import ShareScreenIcon from './ShareScreenIcon';
+import Chat from '../components/Chat';
 class Video extends React.Component {
   constructor() {
     super();
@@ -113,6 +114,7 @@ class Video extends React.Component {
       return 'The room is full';
     }
   };
+
   render() {
     return (
       <div className='video-wrapper'>
@@ -132,14 +134,9 @@ class Video extends React.Component {
           id='remoteVideo'
           ref={video => (this.remoteVideo = video)}
         />
-        <button
-          className='share-screen-btn'
-          onClick={() => {
-            this.getDisplay();
-          }}
-        >
-          <ShareScreenIcon />
-        </button>
+        <div style={{ background: 'white' }}>
+          <Chat />
+        </div>
         {this.state.connecting && (
           <div className='status'>
             <p>Establishing connection...</p>

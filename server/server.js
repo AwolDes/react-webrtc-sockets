@@ -32,4 +32,8 @@ io.on('connection', function (socket) {
         }
         
     })
+    socket.on('newChatMessage', data => {
+        console.log(data)
+        io.emit('newChatMessage', data);
+    });
 });

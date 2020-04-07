@@ -11,14 +11,14 @@
 .video-wrapper {
   height: 100vh;
   background: #252839;
-  width: 100%;
+  width: 50%;
 }
 #remoteVideo {
   background: transparent;
   margin: 0 auto;
   display: block;
-  max-width: 100vw;
-  height: 100%;
+  max-width: 100%;
+  /* height: 100%; */
 }
 #remoteVideo.hide {
   display: none;
