@@ -31,6 +31,7 @@ class Video extends React.Component {
       component.setState({ initiator: true });
     });
     socket.on('ready', () => {
+      console.log('ready')
       component.enter(roomId);
     });
     socket.on('desc', data => {
@@ -47,10 +48,11 @@ class Video extends React.Component {
   }
   getUserMedia(cb) {
     return new Promise((resolve, reject) => {
-      navigator.getUserMedia = navigator.getUserMedia =
-        navigator.getUserMedia ||
-        navigator.webkitGetUserMedia ||
-        navigator.mozGetUserMedia;
+      navigator.mediaDevices.getUserMedia = ( navigator.mediaDevices.getUserMedia ||
+                       navigator.mediaDevices.webkitGetUserMedia ||
+                       navigator.mediaDevices.mozGetUserMedia ||
+                       navigator.mediaDevices.msGetUserMedia);
+      console.log(navigator.mediaDevices.getUserMedia)
       const op = {
         video: {
           width: { min: 160, ideal: 640, max: 1280 },
@@ -58,15 +60,13 @@ class Video extends React.Component {
         },
         audio: true
       };
-      navigator.getUserMedia(
-        op,
-        stream => {
+      navigator.mediaDevices.getUserMedia(op)
+        .then(stream => {
           this.setState({ streamUrl: stream, localStream: stream });
           this.localVideo.srcObject = stream;
           resolve();
-        },
-        () => {}
-      );
+        })
+        .catch(err => reject(err))
     });
   }
   getDisplay() {
