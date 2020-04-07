@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import socketIOClient from "socket.io-client";
+import io from "socket.io-client";
 
-const useChat = () => {
+const useChat = (roomId) => {
   const [messages, setMessages] = useState([]);
   const socketRef = useRef();
 
   useEffect(() => {
-    socketRef.current = socketIOClient(
-      "http://localhost:8080"
+    socketRef.current = io(
+      process.env.REACT_APP_SIGNALING_SERVER
     );
+    socketRef.current.emit('join', { roomId: roomId });
 
     socketRef.current.on(
       "newChatMessage",
       ({ message }) => {
-        console.log(message)
         setMessages(messages => [...messages, message]);
       }
     );

@@ -4,10 +4,12 @@ var io = require('socket.io')(server);
 
 server.listen(8080);
 
+
 io.on('connection', function (socket) {
     socket.on('join', function (data) {
         socket.join(data.roomId);
         socket.room = data.roomId;
+
         const sockets = io.of('/').in().adapter.rooms[data.roomId];
         if(sockets.length===1){
             socket.emit('init')
@@ -34,6 +36,9 @@ io.on('connection', function (socket) {
     })
     socket.on('newChatMessage', data => {
         console.log(data)
-        io.emit('newChatMessage', data);
+        const roomId = Object.keys(socket.rooms).filter(item => item != socket.id)[0];
+        // Filter out socket id - it is the default room a socket is in
+        console.log(roomId)
+        io.to(roomId).emit('newChatMessage', data);
     });
 });

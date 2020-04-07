@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import VideoCall from '../helpers/simple-peer';
 import '../styles/video.css';
 import io from 'socket.io-client';
@@ -23,8 +23,8 @@ class Video extends React.Component {
   componentDidMount() {
     const socket = io(process.env.REACT_APP_SIGNALING_SERVER);
     const component = this;
-    this.setState({ socket });
     const { roomId } = this.props.match.params;
+    this.setState({ socket, roomId });
     this.getUserMedia().then(() => {
       socket.emit('join', { roomId: roomId });
     });
@@ -135,7 +135,7 @@ class Video extends React.Component {
           ref={video => (this.remoteVideo = video)}
         />
         <div style={{ background: 'white' }}>
-          <Chat />
+          <Chat roomId={this.state.roomId} />
         </div>
         {this.state.connecting && (
           <div className='status'>

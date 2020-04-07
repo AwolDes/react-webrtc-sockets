@@ -4,9 +4,9 @@ import useChat from "./_useChat";
 import MessageBox from "./MessageBox";
 import Messages from "./Messages";
 
-const Chat = () => {
-  const { messages, sendMessage } = useChat();
-
+const Chat = ({ roomId }) => {
+  const { messages, sendMessage } = useChat(roomId);
+  console.log(messages)
   return (
     <div>
       <Messages messages={messages} />
