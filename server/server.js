@@ -35,7 +35,10 @@ io.on('connection', function (socket) {
         
     })
     socket.on('newChatMessage', data => {
-        console.log(data)
-        io.to(data.roomId).emit('newChatMessage', { message: data.message });
+        io.to(data.roomId).emit('newChatMessage', { text: data.message, sender: socket.id });
+    });
+    socket.on('typing', data => {
+        // must use socket instead of io to boradcast event to other sockets, not whole room
+        socket.to(data.roomId).emit('typing', { typing: data.typing, sender: socket.id });
     });
 });

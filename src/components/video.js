@@ -4,7 +4,7 @@ import '../styles/video.css';
 import io from 'socket.io-client';
 import { getDisplayStream } from '../helpers/media-access';
 import ShareScreenIcon from './ShareScreenIcon';
-import Chat from '../components/Chat';
+import Chat from './CustomChat';
 class Video extends React.Component {
   constructor() {
     super();
@@ -16,7 +16,9 @@ class Video extends React.Component {
       peer: {},
       full: false,
       connecting: false,
-      waiting: true
+      waiting: true,
+      messages: [],
+      partnerTyping: false,
     };
   }
   videoCall = new VideoCall();
@@ -46,6 +48,18 @@ class Video extends React.Component {
     socket.on('full', () => {
       component.setState({ full: true });
     });
+    socket.on('newChatMessage',
+      (message) => {
+        console.log(message)
+        this.setState({ messages: [...this.state.messages, message]});
+      }
+    );
+    socket.on('typing',
+      ({ typing }) => {
+        console.log(typing)
+        this.setState({ partnerTyping: typing});
+      }
+    );
   }
   getUserMedia(cb) {
     return new Promise((resolve, reject) => {
@@ -114,6 +128,12 @@ class Video extends React.Component {
       return 'The room is full';
     }
   };
+  sendMessage = ({ message, roomId }) => {
+    this.state.socket.emit('stoppedTyping', { typing: false })
+    this.state.socket.emit('newChatMessage', { message, roomId });
+  };
+
+  setClientTyping = (typing) => {this.state.socket.emit('typing', { typing, roomId: this.state.roomId })} 
 
   render() {
     return (
@@ -135,7 +155,14 @@ class Video extends React.Component {
           ref={video => (this.remoteVideo = video)}
         />
         <div style={{ background: 'white' }}>
-          <Chat roomId={this.state.roomId} />
+        {this.state.socket && <Chat
+          clientId={this.state.socket.id}
+          roomId={this.state.roomId}
+          sendMessage={this.sendMessage}
+          messages={this.state.messages}
+          setClientTyping={this.setClientTyping}
+          partnerTyping={this.state.partnerTyping}
+        /> }
         </div>
         {this.state.connecting && (
           <div className='status'>

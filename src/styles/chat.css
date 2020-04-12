@@ -1,0 +1,42 @@
+.messages {
+  height: 300px;
+  overflow-y: scroll;
+}
+
+.message {
+  border-radius: 5px;
+  padding: 5px;
+  margin: 2px;
+}
+
+.my-message {
+  background-color: blue;
+  color: white;
+  width: 20%;
+  margin-left: 2px;
+  margin-right: auto;
+}
+.their-message {
+  background-color: grey;
+  color: black;
+  width: 20%;
+  margin-left: auto;
+  margin-right: 2px;
+}
+
+.partnerTyping {
+  color: black;
+  width: 20%;
+  margin-left: auto;
+  margin-right: 2px;
+}
+
+.partnerTyping:after {
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: bottom;
+  -webkit-animation: ellipsis steps(4,end) 900ms infinite;      
+  animation: ellipsis steps(4,end) 900ms infinite;
+  content: "\2026"; /* ascii code for the ellipsis character */
+  width: 0px;
+}
