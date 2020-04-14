@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import VideoCall from '../helpers/simple-peer';
 import '../styles/video.css';
 import io from 'socket.io-client';
-import { getDisplayStream } from '../helpers/media-access';
-import ShareScreenIcon from './ShareScreenIcon';
 import Chat from './CustomChat';
 
 const VideoWithHooks  = ({ match }) => {
@@ -11,13 +9,11 @@ const VideoWithHooks  = ({ match }) => {
   // we initialise socket listeners on render, and the closure means stale state is referenced.
   // See https://stackoverflow.com/questions/54675523/state-inside-useeffect-refers-the-initial-state-always-with-react-hooks
   const peer = useRef({});
-  const [peeringObject, setPeer] = useState();
   const localStream = useRef({});
   const localVideo = useRef();
   const remoteVideo = useRef();
   // this MUST be true for peer to signal
   const initiator = useRef(false);
-  // const [initiator, setInitiator] = useState(false)
   const [full, setFull] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [waiting, setWaiting] = useState(true)
@@ -39,19 +35,11 @@ const VideoWithHooks  = ({ match }) => {
       initiator.current = true;
     });
 
-    // does defining socket events here breaks
-    // this is because state seems to be frozen for the enter call...
-    // https://stackoverflow.com/questions/54675523/state-inside-useeffect-refers-the-initial-state-always-with-react-hooks
-    // Solution: useRef
     socket.on('ready', () => {
       enter(roomId);
     });
 
     socket.on('desc', data => {
-      console.log('calling')
-      console.log(data)
-      console.log(data.type === 'offer' && initiator.current)
-      console.log(data.type === 'answer' && !initiator.current)
       if (data.type === 'offer' && initiator.current) return;
       if (data.type === 'answer' && !initiator.current) return;
       call(data);
@@ -109,7 +97,6 @@ const VideoWithHooks  = ({ match }) => {
       initiator.current
     );
 
-    // Peer events currently not firing - object cleaned up somehow?
     peerObject.on('signal', data => {
       console.log('peer signal')
       const signal = {
@@ -120,25 +107,19 @@ const VideoWithHooks  = ({ match }) => {
     });
 
     peerObject.on('stream', stream => {
-      console.log('peer stream')
       remoteVideo.current.srcObject = stream;
       setConnecting(false);
       setWaiting(false);
     });
 
-    peerObject.on('error', function(err) {
-      console.log('peer error')
+    peerObject.on('error', (err) => {
       console.log(err);
     });
     peer.current = peerObject;
-    // setPeer(peerObject)
-    console.log(peerObject)
 
   };
 
   const call = otherId => {
-    console.log('CALLED')
-    console.log(otherId)
     videoCall.connect(otherId);
   };
 
@@ -196,184 +177,7 @@ const VideoWithHooks  = ({ match }) => {
         {renderFull()}
       </div>
     );
-  }
-
-class Video extends React.Component {
-  constructor() {
-    super();
-    this.state = {
-      localStream: {},
-      remoteStreamUrl: '',
-      streamUrl: '',
-      initiator: false,
-      peer: {},
-      full: false,
-      connecting: false,
-      waiting: true,
-      messages: [],
-      partnerTyping: false,
-    };
-  }
-  videoCall = new VideoCall();
-  componentDidMount() {
-    const socket = io(process.env.REACT_APP_SIGNALING_SERVER);
-    const component = this;
-    const { roomId } = this.props.match.params;
-    this.setState({ socket, roomId });
-    this.getUserMedia().then(() => {
-      socket.emit('join', { roomId: roomId });
-    });
-    socket.on('init', () => {
-      component.setState({ initiator: true });
-    });
-    socket.on('ready', () => {
-      console.log('ready')
-      component.enter(roomId);
-    });
-    socket.on('desc', data => {
-      if (data.type === 'offer' && component.state.initiator) return;
-      if (data.type === 'answer' && !component.state.initiator) return;
-      component.call(data);
-    });
-    socket.on('disconnected', () => {
-      component.setState({ initiator: true });
-    });
-    socket.on('full', () => {
-      component.setState({ full: true });
-    });
-    socket.on('newChatMessage',
-      (message) => {
-        console.log(message)
-        this.setState({ messages: [...this.state.messages, message]});
-      }
-    );
-    socket.on('typing',
-      ({ typing }) => {
-        console.log(typing)
-        this.setState({ partnerTyping: typing});
-      }
-    );
-  }
-  getUserMedia(cb) {
-    return new Promise((resolve, reject) => {
-      navigator.mediaDevices.getUserMedia = ( navigator.mediaDevices.getUserMedia ||
-                       navigator.mediaDevices.webkitGetUserMedia ||
-                       navigator.mediaDevices.mozGetUserMedia ||
-                       navigator.mediaDevices.msGetUserMedia);
-      console.log(navigator.mediaDevices.getUserMedia)
-      const op = {
-        video: {
-          width: { min: 160, ideal: 640, max: 1280 },
-          height: { min: 120, ideal: 360, max: 720 }
-        },
-        audio: true
-      };
-      navigator.mediaDevices.getUserMedia(op)
-        .then(stream => {
-          this.setState({ streamUrl: stream, localStream: stream });
-          console.log(this.state.localStream)
-          this.localVideo.srcObject = stream;
-          resolve();
-        })
-        .catch(err => reject(err))
-    });
-  }
-  getDisplay() {
-    getDisplayStream().then(stream => {
-      stream.oninactive = () => {
-        this.state.peer.removeStream(this.state.localStream);
-        this.getUserMedia().then(() => {
-          this.state.peer.addStream(this.state.localStream);
-        });
-      };
-      this.setState({ streamUrl: stream, localStream: stream });
-      this.localVideo.srcObject = stream;
-      this.state.peer.addStream(stream);
-    });
-  }
-  enter = roomId => {
-    this.setState({ connecting: true });
-    console.log(this.state.localStream)
-    const peerObject = this.videoCall.init(
-      this.state.localStream,
-      this.state.initiator
-    );
-    // this.setState({ peer: peerObject });
-
-    peerObject.on('signal', data => {
-      console.log('peer signalling')
-      const signal = {
-        room: roomId,
-        desc: data
-      };
-      this.state.socket.emit('signal', signal);
-    });
-    peerObject.on('stream', stream => {
-      this.remoteVideo.srcObject = stream;
-      this.setState({ connecting: false, waiting: false });
-    });
-    peerObject.on('error', function(err) {
-      console.log(err);
-    });
-  };
-  call = otherId => {
-    this.videoCall.connect(otherId);
-  };
-  renderFull = () => {
-    if (this.state.full) {
-      return 'The room is full';
-    }
-  };
-  sendMessage = ({ message, roomId }) => {
-    this.state.socket.emit('stoppedTyping', { typing: false })
-    this.state.socket.emit('newChatMessage', { message, roomId });
-  };
-
-  setClientTyping = (typing) => {this.state.socket.emit('typing', { typing, roomId: this.state.roomId })} 
-
-  render() {
-    return (
-      <div className='video-wrapper'>
-        <div className='local-video-wrapper'>
-          <video
-            autoPlay
-            id='localVideo'
-            muted
-            ref={video => (this.localVideo = video)}
-          />
-        </div>
-        <video
-          autoPlay
-          className={`${
-            this.state.connecting || this.state.waiting ? 'hide' : ''
-          }`}
-          id='remoteVideo'
-          ref={video => (this.remoteVideo = video)}
-        />
-        <div style={{ background: 'white' }}>
-        {this.state.socket && <Chat
-          clientId={this.state.socket.id}
-          roomId={this.state.roomId}
-          sendMessage={this.sendMessage}
-          messages={this.state.messages}
-          setClientTyping={this.setClientTyping}
-          partnerTyping={this.state.partnerTyping}
-        /> }
-        </div>
-        {this.state.connecting && (
-          <div className='status'>
-            <p>Establishing connection...</p>
-          </div>
-        )}
-        {this.state.waiting && (
-          <div className='status'>
-            <p>Waiting for someone...</p>
-          </div>
-        )}
-        {this.renderFull()}
-      </div>
-    );
-  }
 }
+
 
 export default VideoWithHooks;
