@@ -1,3 +1,3 @@
-export async function getDisplayStream(){
-    return navigator.mediaDevices.getDisplayMedia();
+export const getDisplayStream = () => {
+    return Promise.resolve(navigator.mediaDevices.getDisplayMedia());
 }

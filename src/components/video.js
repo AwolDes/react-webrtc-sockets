@@ -1,10 +1,184 @@
-import React, { useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import VideoCall from '../helpers/simple-peer';
 import '../styles/video.css';
 import io from 'socket.io-client';
 import { getDisplayStream } from '../helpers/media-access';
 import ShareScreenIcon from './ShareScreenIcon';
 import Chat from './CustomChat';
+
+const VideoWithHooks  = ({ match }) => {
+  const [localStream, setLocalStream] = useState({})
+  const [peer, setPeer] = useState({})
+
+  const localVideo = useRef();
+  const remoteVideo = useRef();
+
+  const [initiator, setInitiator] = useState(false)
+  const [full, setFull] = useState(false)
+  const [connecting, setConnecting] = useState(false)
+  const [waiting, setWaiting] = useState(true)
+  const [messages, setMessages] = useState([])
+  const [partnerTyping, setPartnerTyping] = useState(false)
+
+  const [socket, setSocket] = useState(io(process.env.REACT_APP_SIGNALING_SERVER))
+  const [roomId, setRoomId] = useState(match.params.roomId);
+
+  const videoCall = new VideoCall();
+
+  // component did mount
+  useEffect(() => {
+    getUserMedia().then(() => {
+      socket.emit('join', { roomId: roomId });
+    });
+
+    socket.on('init', () => {
+      setInitiator(true);
+    });
+
+    // does defining socket events here break
+    socket.on('ready', () => {
+      enter(roomId);
+    });
+
+    socket.on('desc', data => {
+      if (data.type === 'offer' && initiator) return;
+      if (data.type === 'answer' && !initiator) return;
+      call(data);
+    });
+    socket.on('disconnected', () => {
+      setInitiator(true);
+    });
+    socket.on('full', () => {
+      setFull(true);
+    });
+    socket.on('newChatMessage',
+      (message) => {
+        setMessages(prev => prev.concat(message));
+      }
+    );
+
+    socket.on('typing',
+      ({ typing }) => {
+        setPartnerTyping(typing)
+      }
+    );
+  }, [])
+
+  useEffect(() => {
+    console.log('stream changed')
+    console.log(localStream)
+  }, [localStream])
+
+
+  const getUserMedia = () => new Promise((resolve, reject) => {
+      navigator.mediaDevices.getUserMedia = ( navigator.mediaDevices.getUserMedia ||
+                       navigator.mediaDevices.webkitGetUserMedia ||
+                       navigator.mediaDevices.mozGetUserMedia ||
+                       navigator.mediaDevices.msGetUserMedia);
+      const op = {
+        video: {
+          width: { min: 160, ideal: 640, max: 1280 },
+          height: { min: 120, ideal: 360, max: 720 }
+        },
+        // require audio
+        audio: true
+      };
+      navigator.mediaDevices.getUserMedia(op)
+        .then(stream => {
+          setLocalStream(stream)
+          localVideo.current.srcObject = stream;
+          resolve();
+        })
+        .catch(err => console.log(err) || reject(err))
+    });
+
+  const enter = roomId => {
+    setConnecting(true)
+    // somehow undefined, even though state is set successfully
+    console.log(localStream)
+    const peerObject = videoCall.init(
+      localStream,
+      initiator
+    );
+    setPeer(peerObject);
+
+    peer.on('signal', data => {
+      const signal = {
+        room: roomId,
+        desc: data
+      };
+      socket.emit('signal', signal);
+    });
+    peer.on('stream', stream => {
+      remoteVideo.current.srcObject = stream;
+      setConnecting(false);
+      setWaiting(false);
+    });
+    peer.on('error', function(err) {
+      console.log(err);
+    });
+  };
+
+  const call = otherId => {
+    videoCall.connect(otherId);
+  };
+
+  const renderFull = () => {
+    if (full) {
+      return 'The room is full';
+    }
+  };
+
+  const sendMessage = ({ message, roomId }) => {
+    socket.emit('stoppedTyping', { typing: false })
+    socket.emit('newChatMessage', { message, roomId });
+  };
+
+  const setClientTyping = (typing) => socket.emit('typing', { typing, roomId });
+
+  return (
+      <div className='video-wrapper'>
+        <div className='local-video-wrapper'>
+          <video
+            autoPlay
+            id='localVideo'
+            muted
+            ref={localVideo}
+          />
+        </div>
+        <video
+          autoPlay
+          className={`${
+            connecting || waiting ? 'hide' : ''
+          }`}
+          id='remoteVideo'
+          ref={remoteVideo}
+        />
+        <div style={{ background: 'white' }}>
+        {socket && <Chat
+          clientId={socket.id}
+          roomId={roomId}
+          sendMessage={sendMessage}
+          messages={messages}
+          setClientTyping={setClientTyping}
+          partnerTyping={partnerTyping}
+        /> }
+        </div>
+        {connecting && (
+          <div className='status'>
+            <p>Establishing connection...</p>
+          </div>
+        )}
+        {waiting && (
+          <div className='status'>
+            <p>Waiting for someone...</p>
+          </div>
+        )}
+        {renderFull()}
+      </div>
+    );
+  }
+
 class Video extends React.Component {
   constructor() {
     super();
@@ -78,6 +252,7 @@ class Video extends React.Component {
       navigator.mediaDevices.getUserMedia(op)
         .then(stream => {
           this.setState({ streamUrl: stream, localStream: stream });
+          console.log(this.state.localStream)
           this.localVideo.srcObject = stream;
           resolve();
         })
@@ -99,6 +274,7 @@ class Video extends React.Component {
   }
   enter = roomId => {
     this.setState({ connecting: true });
+    console.log(this.state.localStream)
     const peer = this.videoCall.init(
       this.state.localStream,
       this.state.initiator
@@ -180,4 +356,4 @@ class Video extends React.Component {
   }
 }
 
-export default Video;
+export default VideoWithHooks;
