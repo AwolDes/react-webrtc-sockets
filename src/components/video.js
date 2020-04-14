@@ -7,9 +7,11 @@ import ShareScreenIcon from './ShareScreenIcon';
 import Chat from './CustomChat';
 
 const VideoWithHooks  = ({ match }) => {
-  const [localStream, setLocalStream] = useState({})
-  const [peer, setPeer] = useState({})
-
+  // use refs for these vars so they exist outside of state
+  // we initialise socket listeners on render, and the closure means stale state is referenced.
+  // See https://stackoverflow.com/questions/54675523/state-inside-useeffect-refers-the-initial-state-always-with-react-hooks
+  const peer = useRef({});
+  const localStream = useRef({});
   const localVideo = useRef();
   const remoteVideo = useRef();
 
@@ -35,22 +37,30 @@ const VideoWithHooks  = ({ match }) => {
       setInitiator(true);
     });
 
-    // does defining socket events here break
+    // does defining socket events here breaks
+    // this is because state seems to be frozen for the enter call...
+    // https://stackoverflow.com/questions/54675523/state-inside-useeffect-refers-the-initial-state-always-with-react-hooks
+    // Solution: useRef
     socket.on('ready', () => {
       enter(roomId);
     });
 
     socket.on('desc', data => {
+      console.log('calling')
+      console.log(data)
       if (data.type === 'offer' && initiator) return;
       if (data.type === 'answer' && !initiator) return;
       call(data);
     });
+
     socket.on('disconnected', () => {
       setInitiator(true);
     });
+
     socket.on('full', () => {
       setFull(true);
     });
+
     socket.on('newChatMessage',
       (message) => {
         setMessages(prev => prev.concat(message));
@@ -63,11 +73,6 @@ const VideoWithHooks  = ({ match }) => {
       }
     );
   }, [])
-
-  useEffect(() => {
-    console.log('stream changed')
-    console.log(localStream)
-  }, [localStream])
 
 
   const getUserMedia = () => new Promise((resolve, reject) => {
@@ -85,7 +90,7 @@ const VideoWithHooks  = ({ match }) => {
       };
       navigator.mediaDevices.getUserMedia(op)
         .then(stream => {
-          setLocalStream(stream)
+          localStream.current = stream;
           localVideo.current.srcObject = stream;
           resolve();
         })
@@ -94,27 +99,34 @@ const VideoWithHooks  = ({ match }) => {
 
   const enter = roomId => {
     setConnecting(true)
-    // somehow undefined, even though state is set successfully
-    console.log(localStream)
+    
     const peerObject = videoCall.init(
-      localStream,
+      localStream.current,
       initiator
     );
-    setPeer(peerObject);
 
-    peer.on('signal', data => {
+    peer.current = peerObject;
+    console.log(peer)
+
+    // Peer events currently not firing
+    peer.current.on('signal', data => {
+      console.log('peer signal')
       const signal = {
         room: roomId,
         desc: data
       };
       socket.emit('signal', signal);
     });
-    peer.on('stream', stream => {
+
+    peer.current.on('stream', stream => {
+      console.log('peer stream')
       remoteVideo.current.srcObject = stream;
       setConnecting(false);
       setWaiting(false);
     });
-    peer.on('error', function(err) {
+
+    peer.current.on('error', function(err) {
+      console.log('peer error')
       console.log(err);
     });
   };

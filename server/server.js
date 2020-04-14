@@ -25,6 +25,7 @@ io.on('connection', function (socket) {
         }
     });
     socket.on('signal', (data) => {
+        console.log('signal')
         io.to(data.room).emit('desc', data.desc)        
     })
     socket.on('disconnect', () => {
