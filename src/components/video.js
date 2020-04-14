@@ -10,7 +10,8 @@ const VideoWithHooks  = ({ match }) => {
   // use refs for these vars so they exist outside of state
   // we initialise socket listeners on render, and the closure means stale state is referenced.
   // See https://stackoverflow.com/questions/54675523/state-inside-useeffect-refers-the-initial-state-always-with-react-hooks
-  const peer = useRef({});
+  // const peer = useRef({});
+  const [peer, setPeer] = useState({});
   const localStream = useRef({});
   const localVideo = useRef();
   const remoteVideo = useRef();
@@ -105,7 +106,9 @@ const VideoWithHooks  = ({ match }) => {
       initiator
     );
 
-    peer.current = peerObject;
+    setPeer(peerObject);
+
+    // peer.current = peerObject;
     console.log(peer)
 
     // Peer events currently not firing
