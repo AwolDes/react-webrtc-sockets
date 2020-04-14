@@ -10,13 +10,14 @@ const VideoWithHooks  = ({ match }) => {
   // use refs for these vars so they exist outside of state
   // we initialise socket listeners on render, and the closure means stale state is referenced.
   // See https://stackoverflow.com/questions/54675523/state-inside-useeffect-refers-the-initial-state-always-with-react-hooks
-  // const peer = useRef({});
-  const [peer, setPeer] = useState({});
+  const peer = useRef({});
+  const [peeringObject, setPeer] = useState();
   const localStream = useRef({});
   const localVideo = useRef();
   const remoteVideo = useRef();
-
-  const [initiator, setInitiator] = useState(false)
+  // this MUST be true for peer to signal
+  const initiator = useRef(false);
+  // const [initiator, setInitiator] = useState(false)
   const [full, setFull] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [waiting, setWaiting] = useState(true)
@@ -35,7 +36,7 @@ const VideoWithHooks  = ({ match }) => {
     });
 
     socket.on('init', () => {
-      setInitiator(true);
+      initiator.current = true;
     });
 
     // does defining socket events here breaks
@@ -49,13 +50,15 @@ const VideoWithHooks  = ({ match }) => {
     socket.on('desc', data => {
       console.log('calling')
       console.log(data)
-      if (data.type === 'offer' && initiator) return;
-      if (data.type === 'answer' && !initiator) return;
+      console.log(data.type === 'offer' && initiator.current)
+      console.log(data.type === 'answer' && !initiator.current)
+      if (data.type === 'offer' && initiator.current) return;
+      if (data.type === 'answer' && !initiator.current) return;
       call(data);
     });
 
     socket.on('disconnected', () => {
-      setInitiator(true);
+      initiator.current = true;
     });
 
     socket.on('full', () => {
@@ -103,16 +106,11 @@ const VideoWithHooks  = ({ match }) => {
     
     const peerObject = videoCall.init(
       localStream.current,
-      initiator
+      initiator.current
     );
 
-    setPeer(peerObject);
-
-    // peer.current = peerObject;
-    console.log(peer)
-
-    // Peer events currently not firing
-    peer.current.on('signal', data => {
+    // Peer events currently not firing - object cleaned up somehow?
+    peerObject.on('signal', data => {
       console.log('peer signal')
       const signal = {
         room: roomId,
@@ -121,20 +119,26 @@ const VideoWithHooks  = ({ match }) => {
       socket.emit('signal', signal);
     });
 
-    peer.current.on('stream', stream => {
+    peerObject.on('stream', stream => {
       console.log('peer stream')
       remoteVideo.current.srcObject = stream;
       setConnecting(false);
       setWaiting(false);
     });
 
-    peer.current.on('error', function(err) {
+    peerObject.on('error', function(err) {
       console.log('peer error')
       console.log(err);
     });
+    peer.current = peerObject;
+    // setPeer(peerObject)
+    console.log(peerObject)
+
   };
 
   const call = otherId => {
+    console.log('CALLED')
+    console.log(otherId)
     videoCall.connect(otherId);
   };
 
@@ -290,24 +294,25 @@ class Video extends React.Component {
   enter = roomId => {
     this.setState({ connecting: true });
     console.log(this.state.localStream)
-    const peer = this.videoCall.init(
+    const peerObject = this.videoCall.init(
       this.state.localStream,
       this.state.initiator
     );
-    this.setState({ peer });
+    // this.setState({ peer: peerObject });
 
-    peer.on('signal', data => {
+    peerObject.on('signal', data => {
+      console.log('peer signalling')
       const signal = {
         room: roomId,
         desc: data
       };
       this.state.socket.emit('signal', signal);
     });
-    peer.on('stream', stream => {
+    peerObject.on('stream', stream => {
       this.remoteVideo.srcObject = stream;
       this.setState({ connecting: false, waiting: false });
     });
-    peer.on('error', function(err) {
+    peerObject.on('error', function(err) {
       console.log(err);
     });
   };
