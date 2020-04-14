@@ -1,4 +1,4 @@
-# WebRTC with react
+# WebRTC with React and Socket.io
 
 This is a simple 1-to-1 video chat room example that uses react with WebRTC for video and audio & Sockets for a text chat. This is based off work in this repo: https://github.com/diegogurgel/react-webrtc
 
